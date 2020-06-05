@@ -1,5 +1,6 @@
 import logging as log
 import os
+import sys
 import hashlib
 from argparse import ArgumentParser
 from pathlib import Path
@@ -7,6 +8,7 @@ from collections import Counter, defaultdict
 from itertools import takewhile
 from concurrent.futures import ThreadPoolExecutor
 from humanfriendly import parse_size, format_size
+from ruamel.yaml import YAML
 
 
 BUFFER_SIZE = 8192
@@ -99,14 +101,17 @@ def main():
 
     sorted_hashes = sorted((x[0] for x in takewhile(lambda x: x[1] > 1, hash_counter.most_common())), key=lambda x: hash_to_sizes[x], reverse=True)
 
+    result = []
     for digest in sorted_hashes:
-        print(f"SHA256: {digest}")
-        print(f"Size: {format_size(hash_to_sizes[digest])}")
-        print("Files:")
-        for f in hash_to_files[digest]:
-            print(f)
-        print()
+        result.append({
+            "hash": digest,
+            "single_size": format_size(hash_to_sizes[digest]),
+            "single_size_raw": hash_to_sizes[digest],
+            "files": [str(f) for f in hash_to_files[digest]]
+        })
 
+    yaml = YAML()
+    yaml.dump(result, sys.stdout)
     log.info("Finished")
 
 
