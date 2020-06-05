@@ -52,7 +52,13 @@ def main():
     config = parse_arguments()
     setup_logging(config['log_level'])
 
-    total_counter = 0
+    statistics = dict(
+        scanned_count=0,
+        hashed_count=0,
+        duplicates_count=0,
+        duplicates_size=0,
+    )
+
     size_counter = Counter()
     size_to_files = defaultdict(list)
 
@@ -64,6 +70,7 @@ def main():
         log.debug(f"Calculating hash for {f}")
         digest = get_digest(f)
 
+        statistics['hashed_count'] += 1
         hash_counter[digest] += 1
         hash_to_files[digest].append(f)
         hash_to_sizes[digest] = size
@@ -81,7 +88,7 @@ def main():
                 if size < config['min_size']:
                     continue
 
-                total_counter += 1
+                statistics['scanned_count'] += 1
                 size_counter[size] += 1
                 size_to_files[size].append(full_path)
 
@@ -97,18 +104,37 @@ def main():
         for fut in futures:
             fut.result()
 
-    log.info(f"Total files: {total_counter}")
-
     sorted_hashes = sorted((x[0] for x in takewhile(lambda x: x[1] > 1, hash_counter.most_common())), key=lambda x: hash_to_sizes[x], reverse=True)
 
-    result = []
+    duplicates = []
     for digest in sorted_hashes:
-        result.append({
+        files = hash_to_files[digest]
+        duplicates_count = len(files) - 1  # Not counting original
+        statistics['duplicates_count'] += duplicates_count
+
+        single_size = hash_to_sizes[digest]
+        duplicates_size = single_size * duplicates_count
+        statistics['duplicates_size'] += duplicates_size
+
+        duplicates.append({
             "hash": digest,
-            "single_size": format_size(hash_to_sizes[digest]),
-            "single_size_raw": hash_to_sizes[digest],
-            "files": [str(f) for f in hash_to_files[digest]]
+            "single_size": format_size(single_size),
+            "single_size_raw": single_size,
+            "duplicates_size": format_size(duplicates_size),
+            "duplicates_size_raw": duplicates_size,
+            "files": [str(f) for f in files]
         })
+
+    result = {
+        'statistics': {
+            'files_scanned': statistics['scanned_count'],
+            'files_hashed': statistics['hashed_count'],
+            'duplicates_found': statistics['duplicates_count'],
+            'duplicates_size': format_size(statistics['duplicates_size']),
+            'duplicates_size_raw': statistics['duplicates_size']
+        },
+        'duplicates': duplicates
+    }
 
     yaml = YAML()
     yaml.dump(result, sys.stdout)
