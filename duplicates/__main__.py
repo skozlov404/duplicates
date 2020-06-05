@@ -93,7 +93,7 @@ def main():
 
         # Make sure to catch all exceptions
         for fut in futures:
-            fut.exception()
+            fut.result()
 
     log.info(f"Total files: {total_counter}")
 
