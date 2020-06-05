@@ -57,6 +57,8 @@ def main():
         hashed_count=0,
         duplicates_count=0,
         duplicates_size=0,
+        too_small_count=0,
+        too_small_size=0,
     )
 
     size_counter = Counter()
@@ -86,6 +88,8 @@ def main():
                 size = full_path.stat().st_size
 
                 if size < config['min_size']:
+                    statistics['too_small_count'] += 1
+                    statistics['too_small_size'] += size
                     continue
 
                 statistics['scanned_count'] += 1
@@ -129,6 +133,9 @@ def main():
         'statistics': {
             'files_scanned': statistics['scanned_count'],
             'files_hashed': statistics['hashed_count'],
+            'too_small_count': statistics['too_small_count'],
+            'too_small_size': format_size(statistics['too_small_size']),
+            'too_small_size_raw': statistics['too_small_size'],
             'duplicates_found': statistics['duplicates_count'],
             'duplicates_size': format_size(statistics['duplicates_size']),
             'duplicates_size_raw': statistics['duplicates_size']
